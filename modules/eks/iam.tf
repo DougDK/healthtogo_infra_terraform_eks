@@ -99,6 +99,10 @@ resource "aws_iam_role_policy_attachment" "alb-ingress-attachment" {
   policy_arn = aws_iam_policy.alb-ingress-policy.arn
 }
 
+//////////////////////////////////////////////////////////////////////////
+///////////////// External DNS
+//////////////////////////////////////////////////////////////////////////
+
 resource "aws_iam_role" "external-dns" {
   name = "${var.env}-external-dns"
 
@@ -157,4 +161,57 @@ resource "aws_iam_policy" "external-dns-policy" {
 resource "aws_iam_role_policy_attachment" "external-dns-policy" {
   role       = aws_iam_role.external-dns.id
   policy_arn = aws_iam_policy.external-dns-policy.arn
+}
+
+//////////////////////////////////////////////////////////////////////////
+///////////////// Health To Go
+//////////////////////////////////////////////////////////////////////////
+
+resource "aws_iam_role" "healthtogo_app" {
+  name = "${var.env}-healthtogo-app"
+  assume_role_policy = <<-POLICY
+  {
+    "Version": "2012-10-17",
+    "Statement": [
+      {
+        "Effect": "Allow",
+        "Principal": {
+          "Federated": "arn:aws:iam::${local.aws_account_id}:oidc-provider/${local.cluster_trust_oidc_provider}"
+        },
+        "Action": "sts:AssumeRoleWithWebIdentity",
+        "Condition": {
+          "StringLike": {
+            "${local.cluster_trust_oidc_provider}:sub":
+              [
+                "system:serviceaccount:healthtogo:*"
+              ]
+          }
+        }
+      }
+    ]
+  }
+  POLICY
+}
+
+resource "aws_iam_policy" "healthtogo-app-ses-policy" {
+  name = "${var.env}-healthtogo-app-ses-policy"
+  policy = <<-EOF
+  {
+      "Version": "2012-10-17",
+      "Statement": [
+          {
+              "Effect": "Allow",
+              "Action": [
+                  "ses:SendEmail"
+              ],
+              "Resource": "arn:aws:ses:us-east-1:470778815705:identity/healthtogo.com.br"
+          }
+      ]
+  }
+  EOF
+}
+
+resource "aws_iam_role_policy_attachment" "healthtogo_app" {
+  role = aws_iam_role.healthtogo_app.id
+  policy_arn = aws_iam_policy.healthtogo-app-ses-policy.arn
 }
