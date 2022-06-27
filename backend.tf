@@ -1,6 +1,6 @@
 terraform {
   backend "local" {
-    path = "~/code/h2g/terraform.tfstate"
+    path = "~/Code/H2G/Infra/Terraform_EKS/"
   }
 
   required_providers {
